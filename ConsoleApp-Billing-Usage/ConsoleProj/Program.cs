@@ -15,8 +15,6 @@ using System.Configuration;
 
 namespace ARMAPI_Test
 {
-#error Please update the appSettings section in app.config, then remove this statement
-
     class Program
     {
        //This is a sample console application that shows you how to grab a token from AAD for the current user of the app, and then get usage data for the customer with that token.
@@ -36,23 +34,67 @@ namespace ARMAPI_Test
              
             */
             // Build up the HttpWebRequest
-            string requestURL = String.Format("{0}/{1}/{2}/{3}",
+            string usagerequestURL = String.Format("{0}/{1}/{2}/{3}",
                        ConfigurationManager.AppSettings["ARMBillingServiceURL"],
                        "subscriptions",
                        ConfigurationManager.AppSettings["SubscriptionID"],
                        "providers/Microsoft.Commerce/UsageAggregates?api-version=2015-06-01-preview&reportedstartTime=2015-03-01+00%3a00%3a00Z&reportedEndTime=2015-05-18+00%3a00%3a00Z");
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(requestURL);
+            HttpWebRequest usagerequest = (HttpWebRequest)WebRequest.Create(usagerequestURL);
 
             // Add the OAuth Authorization header, and Content Type header
-            request.Headers.Add(HttpRequestHeader.Authorization, "Bearer " + token);
-            request.ContentType = "application/json";
+            usagerequest.Headers.Add(HttpRequestHeader.Authorization, "Bearer " + token);
+            usagerequest.ContentType = "application/json";
 
             // Call the Usage API, dump the output to the console window
             try
             {
                 // Call the REST endpoint
                 Console.WriteLine("Calling Usage service...");
-                HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+                HttpWebResponse response = (HttpWebResponse)usagerequest.GetResponse();
+                Console.WriteLine(String.Format("Usage service response status: {0}", response.StatusDescription));
+                Stream receiveStream = response.GetResponseStream();
+
+                // Pipes the stream to a higher level stream reader with the required encoding format. 
+                StreamReader readStream = new StreamReader(receiveStream, Encoding.UTF8);
+                var usageResponse = readStream.ReadToEnd();
+                Console.WriteLine("Usage stream received.  Press ENTER to continue with raw output.");
+                Console.ReadLine();
+                Console.WriteLine(usageResponse);
+                Console.WriteLine("Raw output complete.  Press ENTER to continue with JSON output.");
+                Console.ReadLine();
+
+                // Convert the Stream to a strongly typed RateCardPayload object.  
+                // You can also walk through this object to manipulate the individuals member objects. 
+                UsagePayload payload = JsonConvert.DeserializeObject<UsagePayload>(usageResponse);
+                Console.WriteLine(usageResponse.ToString());
+                response.Close();
+                readStream.Close();
+                Console.WriteLine("JSON output complete.  Press ENTER to close.");
+                Console.ReadLine();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(String.Format("{0} \n\n{1}", e.Message, e.InnerException != null ? e.InnerException.Message : ""));
+                Console.ReadLine();
+            }
+            //Buils Rate Card Request
+            string rateCardrequestURL = String.Format("{0}/{1}/{2}/{3}",
+                       ConfigurationManager.AppSettings["ARMBillingServiceURL"],
+                       "subscriptions",
+                       ConfigurationManager.AppSettings["SubscriptionID"],
+                       "providers/Microsoft.Commerce/RateCard?api-version=2015-06-01-preview&$filter=OfferDurableId eq ’MS-AZR-0003p’ and Currency eq ’AUD’ and Locale eq ’en-US’ and RegionInfo eq ’AU’");
+            HttpWebRequest rateCardrequest = (HttpWebRequest)WebRequest.Create(rateCardrequestURL);
+
+            // Add the OAuth Authorization header, and Content Type header
+            rateCardrequest.Headers.Add(HttpRequestHeader.Authorization, "Bearer " + token);
+            // rateCardrequest.ContentType = "application/json";
+
+            // Call the Usage API, dump the output to the console window
+            try
+            {
+                // Call the REST endpoint
+                Console.WriteLine("Calling Usage service...");
+                HttpWebResponse response = (HttpWebResponse)rateCardrequest.GetResponse();
                 Console.WriteLine(String.Format("Usage service response status: {0}", response.StatusDescription));
                 Stream receiveStream = response.GetResponseStream();
 
